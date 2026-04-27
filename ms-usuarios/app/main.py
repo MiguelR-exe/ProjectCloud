@@ -1,6 +1,8 @@
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from .database import engine, Base
 from .routes import users
+import os
 from faker import Faker
 from sqlalchemy.orm import Session
 from .database import SessionLocal
@@ -10,6 +12,14 @@ import hashlib
 Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="MS Usuarios", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[os.getenv("CORS_ORIGIN", "http://localhost:3000")],
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
 app.include_router(users.router, prefix="/api/users", tags=["users"])
 
 @app.on_event("startup")

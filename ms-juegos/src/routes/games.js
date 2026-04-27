@@ -4,9 +4,17 @@ const Game = require('../models/game');
 
 // GET todos los juegos
 router.get('/', async (req, res) => {
-  const { page = 1, limit = 20, genre } = req.query;
+  const { page = 1, limit = 20, genre, sort, order = 'desc' } = req.query;
   const filter = genre ? { genre } : {};
+  const dir = order === 'asc' ? 1 : -1;
+  const sortMap = {
+    rating: { 'metadata.rating': dir },
+    genre:  { genre: dir },
+    title:  { title: dir },
+  };
+  const sortObj = sortMap[sort] || {};
   const games = await Game.find(filter)
+    .sort(sortObj)
     .skip((page - 1) * limit)
     .limit(Number(limit));
   res.json(games);
