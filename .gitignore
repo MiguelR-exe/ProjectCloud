@@ -1,0 +1,6 @@
+.aws/
+.bash_history
+.env
+target/
+*.log
+*.jar
