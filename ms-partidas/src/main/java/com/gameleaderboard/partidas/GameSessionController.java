@@ -4,7 +4,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/sessions")
@@ -40,7 +42,7 @@ public class GameSessionController {
     }
 
     @GetMapping("/game/{gameId}")
-    public ResponseEntity<List<GameSession>> getSessionsByGame(@PathVariable Long gameId) {
+    public ResponseEntity<List<GameSession>> getSessionsByGame(@PathVariable String gameId) {
         List<GameSession> sessions = gameSessionRepository.findByGameIdOrderByScoreDesc(gameId);
         return ResponseEntity.ok(sessions);
     }
@@ -52,11 +54,23 @@ public class GameSessionController {
             GameSession existing = session.get();
             if (sessionDetails.getScore() != null) existing.setScore(sessionDetails.getScore());
             if (sessionDetails.getStatus() != null) existing.setStatus(sessionDetails.getStatus());
+            if (sessionDetails.getDifficulty() != null) existing.setDifficulty(sessionDetails.getDifficulty());
+            if (sessionDetails.getLevel() != null) existing.setLevel(sessionDetails.getLevel());
+            if (sessionDetails.getDurationSeconds() != null) existing.setDurationSeconds(sessionDetails.getDurationSeconds());
             if (sessionDetails.getEndTime() != null) existing.setEndTime(sessionDetails.getEndTime());
             GameSession updated = gameSessionRepository.save(existing);
             return ResponseEntity.ok(updated);
         }
         return ResponseEntity.notFound().build();
+    }
+
+    @GetMapping("/stats/scores")
+    public ResponseEntity<List<Map<String, Object>>> getScoresByUser() {
+        List<Object[]> rows = gameSessionRepository.sumScoreByUser();
+        List<Map<String, Object>> result = rows.stream()
+            .map(r -> Map.of("userId", r[0], "totalScore", r[1]))
+            .collect(Collectors.toList());
+        return ResponseEntity.ok(result);
     }
 
     @DeleteMapping("/{id}")

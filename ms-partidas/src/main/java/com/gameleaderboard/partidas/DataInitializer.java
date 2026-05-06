@@ -2,10 +2,15 @@ package com.gameleaderboard.partidas;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.RestTemplate;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Random;
 
 @Component
@@ -16,51 +21,76 @@ public class DataInitializer implements CommandLineRunner {
 
     @Override
     public void run(String... args) throws Exception {
-        // Verificar si ya hay datos
         if (gameSessionRepository.count() > 0) {
             System.out.println("Base de datos ya contiene datos. Omitiendo seed.");
             return;
         }
 
-        System.out.println("Iniciando seed de 20,000 registros...");
+        String[] gameIds = fetchGameIds();
+
+        int totalSessions = 800000;
+        int totalUsers    = 20000;
+        System.out.println("Iniciando seed de " + totalSessions + " registros con " + gameIds.length + " juegos...");
+
         List<GameSession> sessions = new ArrayList<>();
         Random random = new Random();
-
-        Long[] userIds = {1L, 2L, 3L, 4L, 5L, 6L, 7L, 8L, 9L, 10L};
-        Long[] gameIds = {1L, 2L, 3L, 4L, 5L};
-        String[] statuses = {"COMPLETED", "ABANDONED", "PAUSED"};
+        String[] statuses    = {"COMPLETED", "ABANDONED", "PAUSED"};
         String[] difficulties = {"EASY", "MEDIUM", "HARD"};
 
-        for (int i = 0; i < 20000; i++) {
+        for (int i = 0; i < totalSessions; i++) {
             GameSession session = new GameSession();
-            session.setUserId(userIds[random.nextInt(userIds.length)]);
+            session.setUserId((long)(random.nextInt(totalUsers) + 1));
             session.setGameId(gameIds[random.nextInt(gameIds.length)]);
             session.setScore(random.nextInt(10000) + 100);
-            session.setDurationSeconds((long) (random.nextInt(3600) + 60));
-            
-            LocalDateTime now = LocalDateTime.now();
-            session.setStartTime(now.minusHours(random.nextInt(720))); // hasta 30 días atrás
-            session.setEndTime(session.getStartTime().plusSeconds(session.getDurationSeconds()));
-            
+            session.setDurationSeconds((long)(random.nextInt(3600) + 60));
+
+            LocalDateTime start = LocalDateTime.now().minusHours(random.nextInt(720));
+            session.setStartTime(start);
+            session.setEndTime(start.plusSeconds(session.getDurationSeconds()));
             session.setStatus(statuses[random.nextInt(statuses.length)]);
             session.setDifficulty(difficulties[random.nextInt(difficulties.length)]);
             session.setLevel(random.nextInt(100) + 1);
-            session.setCreatedAt(session.getStartTime());
+            session.setCreatedAt(start);
 
             sessions.add(session);
 
-            // Guardar en lotes de 1000
-            if ((i + 1) % 1000 == 0) {
+            if ((i + 1) % 5000 == 0) {
                 gameSessionRepository.saveAll(sessions);
                 System.out.println("Guardados " + (i + 1) + " registros...");
                 sessions.clear();
             }
         }
 
-        // Guardar los últimos registros
-        if (!sessions.isEmpty()) {
-            gameSessionRepository.saveAll(sessions);
-            System.out.println("Seed completado: 20,000 registros insertados.");
+        if (!sessions.isEmpty()) gameSessionRepository.saveAll(sessions);
+        System.out.println("Seed completado: " + totalSessions + " registros insertados.");
+    }
+
+    @SuppressWarnings("unchecked")
+    private String[] fetchGameIds() {
+        String msJuegosUrl = System.getenv().getOrDefault("MS_JUEGOS_URL", "http://ms-juegos:8002");
+        RestTemplate restTemplate = new RestTemplate();
+
+        for (int attempt = 0; attempt < 10; attempt++) {
+            try {
+                List<Map<String, Object>> games = restTemplate.exchange(
+                    msJuegosUrl + "/api/games?page=1&limit=100",
+                    HttpMethod.GET, null,
+                    new ParameterizedTypeReference<List<Map<String, Object>>>() {}
+                ).getBody();
+
+                if (games != null && !games.isEmpty()) {
+                    return games.stream()
+                        .map(g -> (String) g.get("_id"))
+                        .filter(id -> id != null)
+                        .toArray(String[]::new);
+                }
+            } catch (Exception e) {
+                System.out.println("Esperando ms-juegos... intento " + (attempt + 1) + "/10");
+                try { Thread.sleep(4000); } catch (InterruptedException ignored) {}
+            }
         }
+
+        System.out.println("No se pudo conectar a ms-juegos. Usando IDs de fallback.");
+        return new String[]{"fallback-1", "fallback-2", "fallback-3"};
     }
 }

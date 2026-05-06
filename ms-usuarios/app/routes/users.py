@@ -46,8 +46,11 @@ def users_by_country(db: Session = Depends(get_db)):
     return [{"country": r[0], "count": r[1]} for r in result]
 
 @router.get("/")
-def get_users(skip: int = 0, limit: int = 20, db: Session = Depends(get_db)):
-    users = db.query(User).offset(skip).limit(limit).all()
+def get_users(skip: int = 0, limit: int = 20, country: str = None, db: Session = Depends(get_db)):
+    query = db.query(User)
+    if country:
+        query = query.join(UserProfile).filter(UserProfile.country == country)
+    users = query.offset(skip).limit(limit).all()
     return [{
         "id": u.id,
         "username": u.username,

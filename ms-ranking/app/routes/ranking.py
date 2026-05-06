@@ -1,87 +1,54 @@
 from fastapi import APIRouter, HTTPException
 import httpx
+import os
+import time
 
 router = APIRouter()
 
-# Puertos definidos en la infraestructura del proyecto
-USERS_SERVICE_URL = "http://localhost:8001/api/users"
-PARTIDAS_SERVICE_URL = "http://localhost:8003/api/sessions"
+MS_USUARIOS_BASE     = os.getenv("MS_USUARIOS_URL", "http://ms-usuarios:8001")
+SCORES_URL = os.getenv("MS_PARTIDAS_URL", "http://ms-partidas:8080") + "/api/sessions/stats/scores"
+
+_cache = {"leaderboard": None, "ts": 0}
+CACHE_TTL = 300  # 5 minutos
 
 async def get_external_data(url: str):
     async with httpx.AsyncClient() as client:
         try:
-            # Timeout de 5 segundos para evitar bloqueos
-            response = await client.get(url, timeout=5.0)
+            response = await client.get(url, timeout=60.0)
             response.raise_for_status()
             return response.json()
         except Exception as e:
             raise HTTPException(status_code=500, detail=f"Error en comunicación: {str(e)}")
 
+async def build_leaderboard():
+    if _cache["leaderboard"] and (time.time() - _cache["ts"]) < CACHE_TTL:
+        return _cache["leaderboard"]
+
+    # Scores agregados por la DB — mucho más rápido que bajar todas las sesiones
+    score_rows = await get_external_data(SCORES_URL)
+    scores = {str(r["userId"]): r["totalScore"] for r in score_rows}
+
+    limit = len(scores)
+    users = await get_external_data(f"{MS_USUARIOS_BASE}/api/users/?skip=0&limit={limit}")
+    user_map = {str(u.get("id")): u.get("username") for u in users}
+
+    result = sorted([
+        {"userId": u_id, "username": user_map.get(u_id, u_id), "totalScore": total}
+        for u_id, total in scores.items() if u_id in user_map
+    ], key=lambda x: x["totalScore"], reverse=True)
+
+    _cache["leaderboard"] = result
+    _cache["ts"] = time.time()
+    return result
+
 @router.get("/leaderboard")
 async def get_leaderboard():
-    # Obtiene datos de ms-partidas (8003) y ms-usuarios (8001)
-    sessions = await get_external_data(PARTIDAS_SERVICE_URL)
-    users = await get_external_data(USERS_SERVICE_URL)
-    
-    # Agrupar puntajes por ID de usuario
-    scores = {}
-    for s in sessions:
-        u_id = str(s.get("userId"))
-        scores[u_id] = scores.get(u_id, 0) + s.get("score", 0)
-        
-    # Unir con nombres de usuario y crear lista final
-    leaderboard = []
-    for u in users:
-        u_id = str(u.get("id"))
-        if u_id in scores:
-            leaderboard.append({
-                "userId": u_id,
-                "username": u.get("username"),
-                "totalScore": scores[u_id]
-            })
-            
-    return sorted(leaderboard, key=lambda x: x["totalScore"], reverse=True)
-
-@router.get("/top10")
-async def get_top10():
-    # Reutiliza la lógica del leaderboard y extrae los 10 mejores
-    full_ranking = await get_leaderboard()
-    return full_ranking[:10]
+    return await build_leaderboard()
 
 @router.get("/user/{userId}")
 async def get_user_ranking(userId: str):
-    # Localiza la posición de un usuario específico en la lista global[cite: 1]
     leaderboard = await get_leaderboard()
     for index, entry in enumerate(leaderboard):
         if str(entry["userId"]) == str(userId):
             return {"rank": index + 1, "data": entry}
     raise HTTPException(status_code=404, detail="Usuario no participa en el ranking")
-
-@router.get("/game/{gameId}")
-async def get_ranking_by_game(gameId: str):
-    # Filtra sesiones específicas por ID de juego desde ms-partidas[cite: 1]
-    url_game_sessions = f"{PARTIDAS_SERVICE_URL}/game/{gameId}"
-    game_sessions = await get_external_data(url_game_sessions)
-    users = await get_external_data(USERS_SERVICE_URL)
-    
-    # Procesar solo las sesiones del juego solicitado
-    game_scores = {}
-    for s in game_sessions:
-        u_id = str(s.get("userId"))
-        game_scores[u_id] = game_scores.get(u_id, 0) + s.get("score", 0)
-        
-    # Cruzar con información de usuarios
-    game_leaderboard = []
-    for u in users:
-        u_id = str(u.get("id"))
-        if u_id in game_scores:
-            game_leaderboard.append({
-                "userId": u_id,
-                "username": u.get("username"),
-                "gameScore": game_scores[u_id]
-            })
-            
-    return {
-        "gameId": gameId,
-        "ranking": sorted(game_leaderboard, key=lambda x: x["gameScore"], reverse=True)
-    }

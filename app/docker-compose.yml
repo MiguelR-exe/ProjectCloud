@@ -27,6 +27,7 @@ services:
       - SPRING_DATASOURCE_URL=jdbc:postgresql://172.31.16.232:5432/partidas_db
       - SPRING_DATASOURCE_USERNAME=postgres
       - SPRING_DATASOURCE_PASSWORD=password_seguro_123
+      - MS_JUEGOS_URL=http://ms-juegos:8002
     restart: always
 
   ms-ranking:

@@ -21,7 +21,7 @@ public class GameSession {
     private Long userId;
 
     @Column(nullable = false)
-    private Long gameId;
+    private String gameId;
 
     @Column(nullable = false)
     private Integer score;
