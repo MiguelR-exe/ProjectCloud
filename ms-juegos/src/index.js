@@ -16,6 +16,13 @@ const MONGO_URL = process.env.MONGO_URL || 'mongodb://mongo:27017/juegos_db';
 
 app.use('/api/games', gamesRouter);
 
+app.get("/juegos/health", (req, res) => {
+  res.json({
+    status: "ok",
+    service: "ms-juegos"
+  });
+});
+
 app.get('/health', (req, res) => {
   res.json({
     status: 'ok',

@@ -14,6 +14,7 @@ app.add_middleware(
 
 app.include_router(ranking.router, prefix="/api/ranking", tags=["Ranking"])
 
+
 @app.get("/")
 async def root():
     return {
@@ -25,4 +26,18 @@ async def root():
             "/api/ranking/top10",
             "/api/ranking/game/{gameId}"
         ]
+    }
+
+@app.get("/ranking/health")
+def health_ranking_prefixed():
+    return {
+        "status": "ok",
+        "service": "ms-ranking"
+    }
+
+@app.get("/health")
+async def health():
+    return {
+        "status": "ok",
+        "service": "ms-ranking"
     }
