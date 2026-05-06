@@ -55,3 +55,10 @@ async def seed_data():
 @app.get("/health")
 def health():
     return {"status": "ok", "service": "ms-usuarios"}
+
+@app.get("/usuarios/health")
+def usuarios_health():
+    return {
+        "status": "ok",
+        "service": "ms-usuarios"
+    }

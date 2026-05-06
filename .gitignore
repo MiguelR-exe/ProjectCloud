@@ -1,5 +1,6 @@
-node_modules/
+.aws/
+.bash_history
 .env
-dist/
-build/
+target/
 *.log
+*.jar
