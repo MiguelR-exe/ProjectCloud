@@ -1,0 +1,25 @@
+package com.gameleaderboard.partidas;
+
+import java.util.Map;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+public class HealthController {
+
+    @GetMapping("/health")
+    public Map<String, String> health() {
+        return Map.of(
+            "status", "ok",
+            "service", "ms-partidas"
+        );
+    }
+
+    @GetMapping("/partidas/health")
+    public Map<String, String> healthPrefixed() {
+        return Map.of(
+            "status", "ok",
+            "service", "ms-partidas"
+        );
+    }
+}

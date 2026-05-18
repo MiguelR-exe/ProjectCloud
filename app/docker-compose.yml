@@ -1,0 +1,55 @@
+services:
+  ms-usuarios:
+    image: doubleedgee/ms-usuarios:latest
+    container_name: ms_usuarios
+    ports:
+      - "8001:8001"
+    environment:
+      - DATABASE_URL=mysql+pymysql://root:password_seguro_123@172.31.16.232:3306/usuarios_db
+      - CORS_ORIGIN=https://master.d218elgkrf98pd.amplifyapp.com
+    restart: always
+
+  ms-juegos:
+    image: doubleedgee/ms-juegos:latest
+    container_name: ms_juegos
+    ports:
+      - "8002:8002"
+    environment:
+      - MONGO_URL=mongodb://172.31.16.232:27017/juegos_db
+    restart: always
+
+  ms-partidas:
+    image: doubleedgee/ms-partidas:latest
+    container_name: ms_partidas
+    ports:
+      - "8003:8003"
+    environment:
+      - SERVER_PORT=8003
+      - SPRING_DATASOURCE_URL=jdbc:postgresql://172.31.16.232:5432/partidas_db
+      - SPRING_DATASOURCE_USERNAME=postgres
+      - SPRING_DATASOURCE_PASSWORD=password_seguro_123
+    restart: always
+
+  ms-ranking:
+    image: doubleedgee/ms-ranking:latest
+    container_name: ms_ranking
+    ports:
+      - "8004:8004"
+    environment:
+      - USERS_SERVICE_URL=http://ms_usuarios:8001/api/users/
+      - PARTIDAS_SERVICE_URL=http://ms-partidas:8003/api/sessions
+    restart: always
+
+  ms-analytics:
+    image: doubleedgee/ms-analytics:latest
+    container_name: ms_analytics
+    ports:
+      - "8005:8005"
+    environment:
+      - AWS_ACCESS_KEY_ID=tu_access_key
+      - AWS_SECRET_ACCESS_KEY=tu_secret_key
+      - AWS_SESSION_TOKEN=tu_session_token
+      - AWS_REGION=us-east-1
+      - ATHENA_DATABASE=game_analytics
+      - S3_OUTPUT=s3://game-analytics-data-5/athena-results/
+    restart: always

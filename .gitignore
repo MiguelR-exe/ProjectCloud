@@ -1,0 +1,29 @@
+# Secretos
+.env
+*.env
+.aws/
+.ssh/
+.bash_history
+*.pem
+*.key
+credentials
+config
+
+# Python
+__pycache__/
+*.pyc
+
+# Node
+node_modules/
+dist/
+build/
+
+# Java / Spring
+target/
+
+# IDE
+.vscode/
+.idea/
+
+# Logs
+*.log

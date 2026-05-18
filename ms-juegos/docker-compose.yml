@@ -1,0 +1,24 @@
+version: "3.8"
+services:
+  ms-juegos:
+    build: .
+    container_name: ms_juegos
+    ports:
+      - "8002:8002"
+    environment:
+      - MONGO_URL=mongodb://mongo:27017/juegos_db
+    depends_on:
+      - mongo
+    restart: on-failure
+
+  mongo:
+    image: mongo:7
+    container_name: mongo_juegos
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    restart: always
+
+volumes:
+  mongo_data:
